@@ -1,4 +1,4 @@
-# SQLite storage dependencies
+# Runtime and build dependencies
 
 Persistent catalogs need a transactional store that preserves committed observations
 and distinguishes unfinished scans. [rusqlite](https://github.com/rusqlite/rusqlite)
@@ -13,6 +13,19 @@ with `cargo tree --locked` using the workspace toolchain:
 
 ```text
 kartotek
+├── libc 0.2.190
+├── sha2 0.10.9
+│   ├── cfg-if 1.0.5
+│   ├── cpufeatures 0.2.17
+│   └── digest 0.10.7
+│       ├── block-buffer 0.10.4
+│       │   └── generic-array 0.14.7
+│       │       ├── typenum 1.20.1
+│       │       [build dependencies]
+│       │       └── version_check 0.9.5
+│       └── crypto-common 0.1.7
+│           ├── generic-array 0.14.7 (shared)
+│           └── typenum 1.20.1 (shared)
 └── rusqlite 0.40.2
     ├── bitflags 2.13.2
     ├── fallible-iterator 0.3.0
@@ -60,13 +73,41 @@ SQLite sources and the crate build configuration are supplied unchanged through
 the checksum-pinned libsqlite3-sys package. Review licenses, bundled SQLite
 provenance, and the entire resolved graph when updating dependencies.
 
+
+Staged content hashing adds [sha2](https://github.com/RustCrypto/hashes) 0.10.9,
+maintained by RustCrypto and licensed MIT OR Apache-2.0. Defaults are disabled;
+only `std` is enabled. SHA-256 provides a standard, collision-resistant digest
+without implementing cryptography locally. [libc](https://github.com/rust-lang/libc)
+0.2.190 supplies platform constants for safe `OpenOptions` calls that reject
+final-component symlinks and avoid blocking on a replaced FIFO. Own code contains
+no unsafe blocks. The full addition is ten crates, listed below; cpufeatures also
+uses libc on some target platforms. No additional test dependencies are added.
+
+| Added package | Purpose | Upstream maintainers | License |
+| --- | --- | --- | --- |
+| sha2 0.10.9 | SHA-256 implementation | RustCrypto/hashes | MIT OR Apache-2.0 |
+| libc 0.2.190 | Native open flags | rust-lang/libc | MIT OR Apache-2.0 |
+| cfg-if 1.0.5 | Conditional implementation selection | rust-lang/cfg-if | MIT OR Apache-2.0 |
+| cpufeatures 0.2.17 | CPU hash acceleration detection | RustCrypto/utils | MIT OR Apache-2.0 |
+| digest 0.10.7 | Digest interfaces | RustCrypto/traits | MIT OR Apache-2.0 |
+| block-buffer 0.10.4 | Hash block buffering | RustCrypto/utils | MIT OR Apache-2.0 |
+| crypto-common 0.1.7 | Shared cryptographic interfaces | RustCrypto/traits | MIT OR Apache-2.0 |
+| generic-array 0.14.7 | Fixed-size digest/block arrays | fizyk20/generic-array | MIT |
+| typenum 1.20.1 | Compile-time array lengths | paholg/typenum | MIT OR Apache-2.0 |
+| version_check 0.9.5 | Build-time compiler capability checks | Sergio Benitez | MIT OR Apache-2.0 |
+
 # Catalog format
 
-Schema version 1 uses SQLite application ID `0x4b415254`. Its tables and constraints
+Schema version 2 uses SQLite application ID `0x4b415254`. Its tables and constraints
 are in [src/catalog_schema.sql](src/catalog_schema.sql). Source roots and paths are
 Unix byte strings stored as BLOBs, preserving non-UTF-8 names on the supported
 Linux/macOS platforms. File sizes are decimal TEXT to preserve the full `u64`
-range. Read failures retain a path, I/O error kind, and message. Times are Unix
+range. Device, inode, and link count use the same exact unsigned representation.
+Native modification/change timestamps include nanoseconds; mode and ownership
+are retained. SHA-256 digests are 32-byte BLOBs. Hash states distinguish unrequested,
+pending, prefix-only, full, and failed observations. Version 1 upgrades through
+[src/catalog_migrate_v2.sql](src/catalog_migrate_v2.sql) in a transaction; historical
+metadata/hash fields remain NULL rather than fabricated. Read failures retain a path, I/O error kind, and message. Times are Unix
 seconds supplied by the command layer; recovery does not invent a stop time.
 
 Each observation is committed independently with FULL synchronization. Exclusive
@@ -74,5 +115,5 @@ connection ownership and DELETE journaling retain the database lock across
 commits, so recovery cannot relabel a live scan. This favors a simple durable
 prefix over batching speed; concurrent commands fail immediately. Storage or
 output failures stop the scan, and failure to finalize leaves a running record
-for recovery rather than claiming completion. Resume and schema migration are
-not implemented yet.
+for recovery rather than claiming completion. Resume is not implemented yet. A complete hashing scan requires no unresolved
+hashes, no read failures, and no prefix-only files still needing a full hash.

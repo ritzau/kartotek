@@ -60,6 +60,27 @@ impl Fixture {
         self.run(&self.catalog, "scan", Some(&self.source))
     }
 
+    fn hash_scan(&self) -> Output {
+        Command::new(env!("CARGO_BIN_EXE_kartotek"))
+            .arg("--catalog")
+            .arg(&self.catalog)
+            .arg("scan")
+            .arg(&self.source)
+            .arg("--hash")
+            .output()
+            .unwrap()
+    }
+
+    fn duplicates(&self, scan: &str) -> Output {
+        Command::new(env!("CARGO_BIN_EXE_kartotek"))
+            .arg("--catalog")
+            .arg(&self.catalog)
+            .arg("duplicates")
+            .arg(scan)
+            .output()
+            .unwrap()
+    }
+
     fn read(&self) -> Connection {
         Connection::open_with_flags(&self.catalog, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap()
     }
@@ -220,7 +241,7 @@ fn abandoned_scan_is_recovered_without_fabricating_an_interruption_time() {
         .unwrap();
     connection
         .execute(
-            "INSERT INTO files VALUES (2, ?1, '18446744073709551615')",
+            "INSERT INTO files (scan_id, path, size) VALUES (2, ?1, '18446744073709551615')",
             [b"/offline/file".as_slice()],
         )
         .unwrap();
@@ -366,4 +387,167 @@ fn unreadable_directory_saves_failures_and_marks_scan_incomplete() {
     assert_eq!(state, "incomplete");
     assert_eq!(kind, "PermissionDenied");
     assert_eq!(files, 1);
+}
+
+#[test]
+fn staged_hashes_separate_matching_prefixes_from_matching_contents() {
+    let fixture = Fixture::new();
+    let mut contents = vec![b'a'; 65537];
+    contents[65536] = b'x';
+    fs::write(fixture.source.join("original"), &contents).unwrap();
+    fs::write(fixture.source.join("copy"), &contents).unwrap();
+    fs::hard_link(
+        fixture.source.join("original"),
+        fixture.source.join("alias"),
+    )
+    .unwrap();
+    contents[65536] = b'y';
+    fs::write(fixture.source.join("same-prefix"), &contents).unwrap();
+    contents[0] = b'b';
+    fs::write(fixture.source.join("different-prefix"), &contents).unwrap();
+    fs::write(fixture.source.join("tiny"), b"abc").unwrap();
+    let result = fixture.hash_scan();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let connection = fixture.read();
+    let full: i64 = connection
+        .query_row(
+            "SELECT count(*) FROM files WHERE hash_state = 'full'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    let prefix: i64 = connection
+        .query_row(
+            "SELECT count(*) FROM files WHERE hash_state = 'prefix'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!((full, prefix), (5, 1));
+    let tiny: Vec<u8> = connection
+        .query_row("SELECT full_hash FROM files WHERE size = '3'", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    let hex: String = tiny.iter().map(|byte| format!("{byte:02x}")).collect();
+    assert_eq!(
+        hex,
+        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    );
+    let metadata: i64 = connection.query_row("SELECT count(*) FROM files WHERE device IS NOT NULL AND inode IS NOT NULL AND modified_nanos IS NOT NULL AND uid IS NOT NULL", [], |row| row.get(0)).unwrap();
+    assert_eq!(metadata, 6);
+    drop(connection);
+    fs::rename(&fixture.source, fixture.directory.join("offline")).unwrap();
+    let duplicates = fixture.duplicates("1");
+    assert!(duplicates.status.success());
+    let text = String::from_utf8(duplicates.stdout).unwrap();
+    assert!(text.contains("1 groups"));
+    assert!(text.contains("3 paths\t2 file identities"));
+    assert!(text.contains("original") && text.contains("copy") && text.contains("alias"));
+    assert!(!text.contains("same-prefix") && !text.contains("different-prefix"));
+}
+
+#[test]
+fn hard_link_aliases_alone_do_not_trigger_full_hashing() {
+    let fixture = Fixture::new();
+    fs::write(fixture.source.join("file"), vec![b'x'; 65537]).unwrap();
+    fs::hard_link(fixture.source.join("file"), fixture.source.join("alias")).unwrap();
+    assert!(fixture.hash_scan().status.success());
+    let connection = fixture.read();
+    let full: i64 = connection
+        .query_row(
+            "SELECT count(*) FROM files WHERE full_hash IS NOT NULL",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(full, 0);
+    drop(connection);
+    let result = fixture.duplicates("1");
+    assert!(result.status.success());
+    assert!(
+        String::from_utf8(result.stdout)
+            .unwrap()
+            .contains("0 groups")
+    );
+}
+
+#[test]
+fn prefix_read_failures_are_saved_and_never_marked_complete() {
+    let fixture = Fixture::new();
+    let denied = fixture.source.join("denied");
+    fs::write(&denied, b"data").unwrap();
+    fs::set_permissions(&denied, fs::Permissions::from_mode(0o0)).unwrap();
+    if fs::File::open(&denied).is_ok() {
+        fs::set_permissions(&denied, fs::Permissions::from_mode(0o600)).unwrap();
+        return;
+    }
+    let result = fixture.hash_scan();
+    fs::set_permissions(&denied, fs::Permissions::from_mode(0o600)).unwrap();
+    assert_eq!(result.status.code(), Some(1));
+    let connection = fixture.read();
+    let state: String = connection
+        .query_row("SELECT state FROM scans", [], |row| row.get(0))
+        .unwrap();
+    let hashing: String = connection
+        .query_row("SELECT hash_state FROM files", [], |row| row.get(0))
+        .unwrap();
+    let kind: String = connection
+        .query_row("SELECT kind FROM read_failures", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(
+        (state.as_str(), hashing.as_str(), kind.as_str()),
+        ("incomplete", "failed", "PermissionDenied")
+    );
+}
+
+#[test]
+fn version_one_catalogs_migrate_without_inventing_metadata_or_hashes() {
+    let fixture = Fixture::new();
+    let connection = Connection::open(&fixture.catalog).unwrap();
+    connection
+        .execute_batch(include_str!("fixtures/catalog_v1.sql"))
+        .unwrap();
+    connection.execute_batch("PRAGMA application_id = 1262572116; PRAGMA user_version = 1;
+        INSERT INTO scans (root, state, started_at, finished_at) VALUES (X'2f6f66666c696e65', 'complete', 1, 2);
+        INSERT INTO files (scan_id, path, size) VALUES (1, X'2f6f66666c696e652f66696c65ff', '18446744073709551615');").unwrap();
+    drop(connection);
+    assert!(
+        fixture
+            .run(&fixture.catalog, "scans", None)
+            .status
+            .success()
+    );
+    let connection = fixture.read();
+    let version: i64 = connection
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .unwrap();
+    let (state, count): (String, i64) = connection
+        .query_row(
+            "SELECT state, (SELECT count(*) FROM files) FROM scans",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .unwrap();
+    let (inode, hash, size): (Option<String>, Option<Vec<u8>>, String) = connection
+        .query_row("SELECT inode, prefix_hash, size FROM files", [], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })
+        .unwrap();
+    assert_eq!(version, 2);
+    assert_eq!((state.as_str(), count), ("complete", 1));
+    assert!(inode.is_none() && hash.is_none());
+    assert_eq!(size, u64::MAX.to_string());
+    drop(connection);
+    assert!(!fixture.duplicates("1").status.success());
+    assert!(fixture.hash_scan().status.success());
+    let connection = fixture.read();
+    let count: i64 = connection
+        .query_row("SELECT count(*) FROM scans", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(count, 2);
 }

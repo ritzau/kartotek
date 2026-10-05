@@ -7,4 +7,6 @@ license = "0BSD"
 description = "A read-only local disk and backup catalog"
 
 [dependencies]
+libc = "=0.2.190"
 rusqlite = { version = "=0.40.2", default-features = false, features = ["bundled"] }
+sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }

@@ -3,7 +3,8 @@
 Kartotek inventories disks and backups to help you find files, identify duplicate content, and understand what is stored where, even when a disk is disconnected.
 
 Status: read-only directory scans are saved in SQLite catalogs and can be listed
-while source disks are offline. File search, resume, and duplicate detection are planned.
+while source disks are offline. Optional staged SHA-256 hashing finds duplicate
+content within a scan. File search and resume are planned.
 
 ## Usage
 
@@ -13,6 +14,8 @@ automatically installs Rust 1.99.0.
 ```sh
 just scan /path/to/disk /path/to/catalog.sqlite
 just scans /path/to/catalog.sqlite
+just hash-scan /path/to/disk /path/to/catalog.sqlite
+just duplicates /path/to/catalog.sqlite 2
 ```
 
 Choose a catalog outside the scanned directory, with an existing parent directory.
@@ -28,7 +31,25 @@ not access the source disk.
 The scanner recursively prints regular files as a byte size, a tab, and a quoted
 absolute path. Paths use Rust debug escaping so embedded tabs and newlines do not
 split records. Output order is unspecified. Symlinks (including a symlink scan root)
-are not followed; special files are skipped. Files are not opened or hashed.
+are not followed; special files are skipped. The default scan collects metadata
+without opening file contents. Observations include size, device/inode identity,
+link count, modification/change timestamps, mode, and owner/group IDs.
+
+`hash-scan` (or `scan <directory> --hash`) explicitly enables content reads. After
+metadata collection, Kartotek saves SHA-256 hashes of the first 64 KiB of each file.
+For files at or below 64 KiB this is also the full hash. Larger files are hashed
+in full only when another distinct device/inode pair has the same size and prefix
+hash. Hard-link aliases alone do not trigger full reads or duplicate groups.
+Reads are bounded by the observed size; metadata and identity are checked before
+and after reading, and the full pass checks the saved prefix again. Changes and
+read failures are saved and make the scan incomplete. These checks cannot provide
+a filesystem snapshot or detect every concurrent modification.
+
+`duplicates <scan-id>` reads saved full hashes while the source is offline. It
+prints groups with matching sizes and full SHA-256 digests, including paths and
+device/inode pairs. Results from incomplete or interrupted scans are explicitly
+partial. Unique prefixes remain candidates with no full hash; a prefix match
+alone is never reported as duplicate content. No source files are modified.
 
 Read failures are reported on stderr and scanning continues when possible. Exit
 status is 0 for a complete traversal, 1 for an incomplete or failed scan, and 2
@@ -43,11 +64,14 @@ A complete traversal is an observation, not a filesystem snapshot. Concurrent so
 results; path checks cannot eliminate races with directory replacement.
 
 `scans` prints tab-separated ID, state, file count, failure count, start and finish
-times (Unix seconds, or `unknown`), quoted source root, and a quoted note. It may
+times (Unix seconds, or `unknown`), quoted source root, a quoted note, hashing
+enabled, and successful prefix/full hash counts. It may
 update abandoned scan states during recovery. Only one Kartotek process can use a
 catalog at a time; concurrent commands fail with a database-lock error rather
 than retrying. Catalog schema versions are checked before use; unrelated SQLite
-databases and unsupported versions are rejected.
+databases and unsupported versions are rejected. Schema version 1 catalogs are
+transactionally upgraded to version 2, preserving previous observations and
+leaving their newly added metadata and hashes unknown.
 
 ## Development
 
