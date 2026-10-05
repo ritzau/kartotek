@@ -28,9 +28,15 @@ The compiler, Cargo, standard library, rustfmt, and Clippy download on the first
 Rust tool command. Listing just recipes or activating the environment does not
 install the Rust toolchain. System linker/build tools remain prerequisites.
 
-`tools/fetch-file` uses curl or wget and OpenSSL to verify and cache releases
-in `.cache/downloads`. Cached files are reverified before reuse; failed downloads
-and mismatched hashes are rejected.
+[direnv](https://direnv.net/), maintained by the direnv project under MIT, is
+optional. Its complete upstream build dependencies are recorded in
+[go.mod](https://github.com/direnv/direnv/blob/master/go.mod) and
+[go.sum](https://github.com/direnv/direnv/blob/master/go.sum).
+`.envrc` loads the shared setup and watches its scripts, release manifest,
+`.cache/bin`, and `rust-toolchain.toml`. This path uses `direnv fetchurl` for
+verified caching. Without direnv, `tools/fetch-file` uses curl or wget and
+OpenSSL to verify and cache releases in `.cache/downloads`. Cached files are
+reverified before reuse; failed downloads and mismatched hashes are rejected.
 OpenSSL is a system setup tool maintained by the OpenSSL project: version 3.x
 uses Apache-2.0, older system versions use their respective upstream licenses.
 It adds no Kartotek package dependencies.

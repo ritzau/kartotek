@@ -47,7 +47,20 @@ Rust, just, prek, Python, or uv installation is required. The environment remain
 active until the shell exits; it does not automatically unload when you change
 directories.
 
-The setup installs pinned rustup, prek, and just into `.cache/bin`
+Alternatively, install [direnv](https://direnv.net/) and enable its shell
+integration once (for zsh, add `eval "$(direnv hook zsh)"` to `.zshrc`):
+
+```sh
+direnv allow
+just check
+```
+
+Direnv loads the same `tools/setup-env` script and supplies its `fetchurl`
+functionality for hash-verified downloads, so this path does not require OpenSSL.
+It automatically activates and unloads the workspace environment when entering
+and leaving the directory, and watches the setup scripts and `.cache/bin`.
+
+The shared setup installs pinned rustup, prek, and just into `.cache/bin`
 and adds that directory to PATH while you work here. Rustup downloads the version
 and components in `rust-toolchain.toml` on the first Rust command, including
 rustfmt and Clippy. Entering the workspace or listing recipes with `just`
@@ -57,13 +70,14 @@ Rust hooks trigger installation when needed.
 workspace, keeping Rust downloads and configuration local. The first load
 requires network access for the small tools; the first Rust command also needs
 network access for the toolchain. Later loads and builds reuse installed tools
-offline. Downloads are ignored by Git. No global prek,
+offline. Downloads are ignored by Git. With direnv, changes to `.cache/bin`
+trigger a reload on the next prompt, restoring missing tools as needed. No global prek,
 just, or Rust installation is needed. A system C linker is still required for
 building; install your operating system's build tools if it is missing.
 
-Setup installs the Git hook and preserve unrelated existing hooks
+Both setup paths install the Git hook and preserve unrelated existing hooks
 through prek's migration mode. Rust and justfile hooks explicitly activate the
-workspace paths, so IDE commits do not depend on an activated shell. Prek reads `prek.toml` and runs the checks before each
+workspace paths, so IDE commits do not depend on a direnv-aware shell. Prek reads `prek.toml` and runs the checks before each
 commit. It removes trailing whitespace, ensures a single final newline in
 nonempty text files, formats Rust with rustfmt, and runs Clippy with warnings
 as errors. No workspace Python environment or activation is needed. If a hook

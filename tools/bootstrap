@@ -1,6 +1,9 @@
 # Install pinned tools in a subshell owned by setup-env.
 source tools/activate-env "$PWD"
 kartotek_download_mode=standalone
+if command -v fetchurl >/dev/null 2>&1; then
+  kartotek_download_mode=direnv
+fi
 for kartotek_tool in rustup prek just; do
   bash tools/install-tool "$kartotek_tool" "$PWD" "$kartotek_download_mode" || exit 1
 done
