@@ -48,6 +48,13 @@ then the independent Rust/justfile formatters, then Clippy. `just check` uses
 read-only whitespace hooks from `tools/whitespace-check.toml` as well as format,
 lint, and test checks. Fixing hooks remain available with `just hooks`.
 
+CI runs setup and `just check` on Linux, with a read-only GitHub token
+and no persisted checkout credentials. It uses GitHub-maintained
+[actions/checkout](https://github.com/actions/checkout) v7.0.1 under MIT, pinned
+to commit `3d3c42e5aac5ba805825da76410c181273ba90b1`. Its bundled Node dependencies
+are recorded in the [versioned package-lock.json](https://github.com/actions/checkout/blob/3d3c42e5aac5ba805825da76410c181273ba90b1/package-lock.json).
+This dependency runs only in CI, not in Kartotek or local setup.
+
 No dependencies are vendored or modified. When upgrading a tool, update every
 supported platform's version, URL, hash, and archive member in the release
 manifest. Update the minimum prek version in both hook configurations when
