@@ -27,13 +27,41 @@ results; path checks cannot eliminate races with directory replacement.
 
 ## Development
 
-There are no third-party dependencies.
+The Rust executable has no third-party dependencies. Install Rust through rustup,
+[prek](https://github.com/j178/prek/releases/tag/v0.5.4) 0.5.4, and
+[just](https://github.com/casey/just/releases/tag/1.58.0) 1.58.0, with their commands
+on PATH. See [DEVELOPMENT.md](DEVELOPMENT.md) for tooling dependency details.
 
 ```sh
-cargo fmt --all -- --check
-cargo clippy --locked --all-targets -- -D warnings
-cargo test --locked
+prek install
+just check
 ```
+
+The hooks remove trailing whitespace, ensure a single final newline in nonempty
+text files, format Rust and the justfile, and run Clippy with warnings as errors.
+If a hook changes files, review and stage the changes before committing again.
+Hooks do not stage fixes. `.editorconfig` supplies the same whitespace conventions
+to supporting editors. Prek uses built-in fixers without Python or uv.
+
+Use `just` for routine development; running it without arguments lists recipes:
+
+```sh
+just
+just build
+just release
+just test
+just fmt
+just lint
+just check
+just hooks
+just scan /path/to/disk
+just run --help
+```
+
+`just check` checks whitespace, Rust and justfile formatting, runs Clippy and
+tests, and validates hook configuration without modifying source files. `just hooks` runs all
+hooks, including whitespace cleanup. `just fmt-check` checks formatting only.
+All Cargo recipes use locked dependencies; Rust commands use the pinned toolchain.
 
 ## Initial scope
 

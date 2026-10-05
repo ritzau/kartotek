@@ -1,0 +1,9 @@
+# Read-only variants of the fixers used by the Git hooks.
+minimum_prek_version = "0.5.4"
+
+[[repos]]
+repo = "builtin"
+hooks = [
+    { id = "trailing-whitespace", args = ["--check"] },
+    { id = "end-of-file-fixer", args = ["--check"] },
+]
