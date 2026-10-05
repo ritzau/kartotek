@@ -2,8 +2,8 @@
 
 Kartotek inventories disks and backups to help you find files, identify duplicate content, and understand what is stored where, even when a disk is disconnected.
 
-Status: an initial read-only directory scanner is implemented. Persistent catalogs,
-offline search, resume, and duplicate detection are planned.
+Status: read-only directory scans are saved in SQLite catalogs and can be listed
+while source disks are offline. File search, resume, and duplicate detection are planned.
 
 ## Usage
 
@@ -11,24 +11,50 @@ Enable the workspace environment as described below; the first Rust command
 automatically installs Rust 1.99.0.
 
 ```sh
-just scan /path/to/disk
+just scan /path/to/disk /path/to/catalog.sqlite
+just scans /path/to/catalog.sqlite
 ```
 
+Choose a catalog outside the scanned directory, with an existing parent directory.
+Kartotek rejects catalogs inside the source tree, including aliases through parent
+symlinks, and rejects linked catalog or SQLite sidecar files. The catalog is the
+only writable data; source files remain read-only. Path checks cannot eliminate
+concurrent replacement races or aliases through mount points.
+
+Without `just`, use `kartotek --catalog <file> scan <directory>` or
+`kartotek --catalog <file> scans`. Listing requires an existing catalog and does
+not access the source disk.
+
 The scanner recursively prints regular files as a byte size, a tab, and a quoted
-path. Paths use Rust debug escaping so embedded tabs and newlines do not split
-records. Output order is unspecified. Symlinks (including a symlink scan root)
+absolute path. Paths use Rust debug escaping so embedded tabs and newlines do not
+split records. Output order is unspecified. Symlinks (including a symlink scan root)
 are not followed; special files are skipped. Files are not opened or hashed.
 
 Read failures are reported on stderr and scanning continues when possible. Exit
 status is 0 for a complete traversal, 1 for an incomplete or failed scan, and 2
-for invalid command syntax. Interrupting the process leaves partial output with
-no completion message; scans are not saved or resumable yet. A complete traversal
-is an observation, not a filesystem snapshot. Concurrent source changes can affect
+for invalid command syntax. Each file observation and read failure is committed
+before it is reported. Saved scans have explicit running, complete, incomplete,
+or interrupted states. A stopped process leaves its scan running until the next
+catalog open acquires exclusive ownership and recovers it as interrupted. Already
+committed observations are retained, and the interruption time remains unknown.
+Handled failures, such as a closed output pipe, record an interrupted state and
+the error immediately when storage is still available. Scans are not resumable yet.
+A complete traversal is an observation, not a filesystem snapshot. Concurrent source changes can affect
 results; path checks cannot eliminate races with directory replacement.
+
+`scans` prints tab-separated ID, state, file count, failure count, start and finish
+times (Unix seconds, or `unknown`), quoted source root, and a quoted note. It may
+update abandoned scan states during recovery. Only one Kartotek process can use a
+catalog at a time; concurrent commands fail with a database-lock error rather
+than retrying. Catalog schema versions are checked before use; unrelated SQLite
+databases and unsupported versions are rejected.
 
 ## Development
 
-The Rust executable has no third-party dependencies. Development hooks use
+SQLite storage uses [rusqlite](https://github.com/rusqlite/rusqlite) with bundled
+SQLite; the system C compiler is needed for builds, with no separate SQLite
+development package required. See [DEPENDENCIES.md](DEPENDENCIES.md) for the full
+runtime/build dependency graph and licenses. Development hooks use
 [prek](https://prek.j178.dev/), a Rust Git hook runner with built-in whitespace
 fixers. See [DEVELOPMENT.md](DEVELOPMENT.md) for dependency details.
 
@@ -96,7 +122,8 @@ just fmt
 just lint
 just check
 just hooks
-just scan /path/to/disk
+just scan /path/to/disk /path/to/catalog.sqlite
+just scans /path/to/catalog.sqlite
 just run --help
 ```
 

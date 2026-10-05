@@ -1,7 +1,7 @@
 # Development tooling dependencies
 
-The Kartotek executable has no third-party dependencies. Rustfmt and Clippy
-ship with the pinned Rust toolchain. External tools are installed locally under
+Runtime/storage dependencies are documented in [DEPENDENCIES.md](DEPENDENCIES.md).
+Rustfmt and Clippy ship with the pinned Rust toolchain. External tools are installed locally under
 `.cache`; they add no crates to Kartotek's Cargo.lock or runtime.
 
 | Tool | Purpose | Maintainer | License | Complete upstream build dependency graph |
@@ -55,8 +55,8 @@ to commit `3d3c42e5aac5ba805825da76410c181273ba90b1`. Its bundled Node dependenc
 are recorded in the [versioned package-lock.json](https://github.com/actions/checkout/blob/3d3c42e5aac5ba805825da76410c181273ba90b1/package-lock.json).
 This dependency runs only in CI, not in Kartotek or local setup.
 
-No dependencies are vendored or modified. When upgrading a tool, update every
-supported platform's version, URL, hash, and archive member in the release
+No tooling dependencies are vendored or modified in this repository. When upgrading
+a tool, update every supported platform's version, URL, hash, and archive member in the release
 manifest. Update the minimum prek version in both hook configurations when
 needed. Review upstream dependency and license changes, then verify fresh
 setup, cached reuse, integrity failures, `just check`, and `just hooks`.
