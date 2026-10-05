@@ -54,7 +54,7 @@ scans catalog:
 # Save metadata and staged SHA-256 hashes in a catalog.
 [positional-arguments]
 hash-scan directory catalog:
-    cargo run --locked -- --catalog "$2" scan "$1" --hash
+    cargo run --locked --release -- --catalog "$2" scan "$1" --hash
 
 # List matching full-file hashes from a saved scan without accessing the source.
 [positional-arguments]

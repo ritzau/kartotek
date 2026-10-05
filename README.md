@@ -35,7 +35,8 @@ are not followed; special files are skipped. The default scan collects metadata
 without opening file contents. Observations include size, device/inode identity,
 link count, modification/change timestamps, mode, and owner/group IDs.
 
-`hash-scan` (or `scan <directory> --hash`) explicitly enables content reads. After
+`hash-scan` builds and runs the optimized release executable. It (or
+`scan <directory> --hash`) explicitly enables content reads. After
 metadata collection, Kartotek saves SHA-256 hashes of the first 64 KiB of each file.
 For files at or below 64 KiB this is also the full hash. Larger files are hashed
 in full only when another distinct device/inode pair has the same size and prefix
