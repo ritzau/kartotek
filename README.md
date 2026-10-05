@@ -107,7 +107,8 @@ All Cargo recipes use locked dependencies; Rust commands use the pinned toolchai
 Ambient `RUSTUP_TOOLCHAIN` overrides are cleared when activating this workspace;
 explicit `cargo +<toolchain>` commands remain available for deliberate experiments.
 
-Release download URLs and
+GitHub Actions runs the same `source tools/setup-env` and `just check` commands
+on Linux for pushes and pull requests. Release download URLs and
 SHA-256 hashes are recorded in `tools/tool-releases.txt`; downloaded binaries
 and archives are verified before installation. Setup does not execute downloaded
 shell scripts.
