@@ -2,7 +2,38 @@
 
 Kartotek inventories disks and backups to help you find files, identify duplicate content, and understand what is stored where, even when a disk is disconnected.
 
-Status: planning. No implementation yet.
+Status: an initial read-only directory scanner is implemented. Persistent catalogs,
+offline search, resume, and duplicate detection are planned.
+
+## Usage
+
+Install Rust through rustup; the repository pins Rust 1.99.0.
+
+```sh
+cargo run --locked -- scan /path/to/disk
+```
+
+The scanner recursively prints regular files as a byte size, a tab, and a quoted
+path. Paths use Rust debug escaping so embedded tabs and newlines do not split
+records. Output order is unspecified. Symlinks (including a symlink scan root)
+are not followed; special files are skipped. Files are not opened or hashed.
+
+Read failures are reported on stderr and scanning continues when possible. Exit
+status is 0 for a complete traversal, 1 for an incomplete or failed scan, and 2
+for invalid command syntax. Interrupting the process leaves partial output with
+no completion message; scans are not saved or resumable yet. A complete traversal
+is an observation, not a filesystem snapshot. Concurrent source changes can affect
+results; path checks cannot eliminate races with directory replacement.
+
+## Development
+
+There are no third-party dependencies.
+
+```sh
+cargo fmt --all -- --check
+cargo clippy --locked --all-targets -- -D warnings
+cargo test --locked
+```
 
 ## Initial scope
 
