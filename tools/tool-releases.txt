@@ -1,0 +1,13 @@
+# tool|version|platform|url|sha256-SRI|archive-member (- for a binary)
+rustup|1.29.1|linux-x86_64|https://static.rust-lang.org/rustup/archive/1.29.1/x86_64-unknown-linux-gnu/rustup-init|sha256-3acjQ2C39XjKiw3cuAFFZG+mGmfBcgpavHBRs1yfy3E=|-
+prek|0.5.4|linux-x86_64|https://github.com/j178/prek/releases/download/v0.5.4/prek-x86_64-unknown-linux-gnu.tar.gz|sha256-YUff5kBRr1kPS/wsBzoHgPteLMN9nquOR/6f4mx9+4A=|prek-x86_64-unknown-linux-gnu/prek
+just|1.58.0|linux-x86_64|https://github.com/casey/just/releases/download/1.58.0/just-1.58.0-x86_64-unknown-linux-musl.tar.gz|sha256-SlzC9T5vD4xZCSpsw4KR63KdRqfdldOuWCAIiBuEkx0=|just
+rustup|1.29.1|linux-aarch64|https://static.rust-lang.org/rustup/archive/1.29.1/aarch64-unknown-linux-gnu/rustup-init|sha256-Ffbkzp9YO5KcmWyRViutbURU8ygd6FiwLN/e9hX6xDM=|-
+prek|0.5.4|linux-aarch64|https://github.com/j178/prek/releases/download/v0.5.4/prek-aarch64-unknown-linux-gnu.tar.gz|sha256-VHjkNiELUia42z3M3RoukJSxxj2BFV2Wv6i4PwOYiFw=|prek-aarch64-unknown-linux-gnu/prek
+just|1.58.0|linux-aarch64|https://github.com/casey/just/releases/download/1.58.0/just-1.58.0-aarch64-unknown-linux-musl.tar.gz|sha256-dII3EoxMQMvavGXoQdBc66E8wjqR6ro5VJWJTB2XZN8=|just
+rustup|1.29.1|macos-x86_64|https://static.rust-lang.org/rustup/archive/1.29.1/x86_64-apple-darwin/rustup-init|sha256-JZ4rhCdENAhRY/6NVWUQVxdyzaKqbYfKaqZk9XvGROM=|-
+prek|0.5.4|macos-x86_64|https://github.com/j178/prek/releases/download/v0.5.4/prek-x86_64-apple-darwin.tar.gz|sha256-vD3dOlaG+pcSDsLQnbnnNT30MRqF57AJRDQt3ZxKIDU=|prek-x86_64-apple-darwin/prek
+just|1.58.0|macos-x86_64|https://github.com/casey/just/releases/download/1.58.0/just-1.58.0-x86_64-apple-darwin.tar.gz|sha256-mgnP72aqp52lggOXAQOgaEMHcWyqq9PphEysxNwPQCM=|just
+rustup|1.29.1|macos-aarch64|https://static.rust-lang.org/rustup/archive/1.29.1/aarch64-apple-darwin/rustup-init|sha256-7BuSM+f3KZDs2OYgY/p/bD38K+yOl/iL/xZfkQCsaWo=|-
+prek|0.5.4|macos-aarch64|https://github.com/j178/prek/releases/download/v0.5.4/prek-aarch64-apple-darwin.tar.gz|sha256-iO7AbdEP1hqbNFIj+vyb7bZ0buTMRzd1USOdiddSs2U=|prek-aarch64-apple-darwin/prek
+just|1.58.0|macos-aarch64|https://github.com/casey/just/releases/download/1.58.0/just-1.58.0-aarch64-apple-darwin.tar.gz|sha256-UK4+mWyXSgvzLqfRD0lQcN8z8bQ+Bhaydp49SCHtj0g=|just

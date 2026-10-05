@@ -1,0 +1,10 @@
+# Activate the given workspace without downloads or hook installation.
+export CARGO_HOME="$1/.cache"
+export RUSTUP_HOME="$1/.cache/rustup"
+export RUSTUP_AUTO_INSTALL=1
+# Keep ambient toolchain overrides from silently replacing the repository pin.
+unset RUSTUP_TOOLCHAIN
+case "$PATH" in
+  "$1/.cache/bin"|"$1/.cache/bin":*) ;;
+  *) export PATH="$1/.cache/bin:$PATH" ;;
+esac
