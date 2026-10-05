@@ -1,0 +1,40 @@
+# Source this file from Bash or zsh to prepare and activate the workspace tools.
+if [ -n "${BASH_VERSION:-}" ]; then
+  if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+    printf '%s\n' 'Source this script: source tools/setup-env' >&2
+    exit 1
+  fi
+elif [ -n "${ZSH_VERSION:-}" ]; then
+  case "${ZSH_EVAL_CONTEXT:-}" in
+    *:file) ;;
+    *) printf '%s\n' 'Source this script: source tools/setup-env' >&2; exit 1 ;;
+  esac
+else
+  printf '%s\n' 'setup-env supports Bash and zsh.' >&2
+  return 1 2>/dev/null || exit 1
+fi
+
+kartotek_setup_env() {
+  local kartotek_setup_file kartotek_root
+  if [ -n "${BASH_VERSION:-}" ]; then
+    kartotek_setup_file=${BASH_SOURCE[0]}
+  else
+    kartotek_setup_file=${(%):-%x}
+  fi
+  kartotek_root=$(cd "$(dirname "$kartotek_setup_file")/.." && pwd -P) || return 1
+  if ! (
+    cd "$kartotek_root" || exit 1
+    source tools/bootstrap
+  ); then
+    return 1
+  fi
+
+  source "$kartotek_root/tools/activate-env" "$kartotek_root"
+}
+
+if kartotek_setup_env; then
+  unset -f kartotek_setup_env
+else
+  unset -f kartotek_setup_env
+  return 1
+fi

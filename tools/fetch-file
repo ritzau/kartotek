@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Download and verify a release file when direnv fetchurl is unavailable.
+set -euo pipefail
+
+if [ "$#" -ne 3 ]; then
+  printf '%s\n' 'Usage: fetch-file <url> <sha256-SRI> <cache-directory>' >&2
+  exit 2
+fi
+
+download_url=$1
+download_integrity=$2
+download_cache=$3
+case "$download_integrity" in
+  sha256-*) ;;
+  *) printf '%s\n' 'Expected a SHA-256 integrity hash.' >&2; exit 2 ;;
+esac
+
+download_digest() {
+  printf 'sha256-%s\n' "$(openssl dgst -sha256 -binary "$1" | openssl base64 -A)"
+}
+
+mkdir -p "$download_cache"
+download_key=$(printf '%s' "$download_integrity" | tr '/+' '_-')
+download_path="$download_cache/$download_key"
+if [ -f "$download_path" ] && [ "$(download_digest "$download_path")" = "$download_integrity" ]; then
+  printf '%s\n' "$download_path"
+  exit 0
+fi
+
+download_temporary=$(mktemp "$download_cache/download.XXXXXX")
+trap 'rm -f "$download_temporary"' EXIT
+if command -v curl >/dev/null 2>&1; then
+  curl --proto '=https' --tlsv1.2 --fail --location --silent --show-error \
+    "$download_url" --output "$download_temporary"
+else
+  wget --quiet --https-only "$download_url" --output-document="$download_temporary"
+fi
+if [ "$(download_digest "$download_temporary")" != "$download_integrity" ]; then
+  printf 'Download integrity mismatch: %s\n' "$download_url" >&2
+  exit 1
+fi
+mv "$download_temporary" "$download_path"
+printf '%s\n' "$download_path"

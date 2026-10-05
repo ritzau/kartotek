@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Run a hook command with the workspace's tool paths and Rust settings.
+set -euo pipefail
+workspace_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
+source "$workspace_root/tools/activate-env" "$workspace_root"
+cd "$workspace_root"
+exec "$@"

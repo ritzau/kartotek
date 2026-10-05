@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Install one hash-pinned release for the current platform, reusing matching tools.
+set -euo pipefail
+if [ "$#" -ne 3 ]; then
+  printf '%s\n' 'Usage: install-tool <rustup|prek|just> <workspace> <standalone|direnv>' >&2
+  exit 2
+fi
+tool=$1
+workspace=$2
+download_mode=$3
+case "$tool" in rustup|prek|just) ;; *) exit 2 ;; esac
+case "$download_mode" in standalone|direnv) ;; *) exit 2 ;; esac
+case "$(uname -s):$(uname -m)" in
+  Linux:x86_64) platform=linux-x86_64 ;;
+  Linux:aarch64|Linux:arm64) platform=linux-aarch64 ;;
+  Darwin:x86_64) platform=macos-x86_64 ;;
+  Darwin:arm64|Darwin:aarch64) platform=macos-aarch64 ;;
+  *) printf '%s\n' 'Supported platforms: Linux (glibc) and macOS, x86_64 and ARM64.' >&2; exit 1 ;;
+esac
+release=$(awk -F '|' -v tool="$tool" -v platform="$platform" \
+  '$1 == tool && $3 == platform { print; count++ } END { if (count != 1) exit 1 }' \
+  "$workspace/tools/tool-releases.txt")
+IFS='|' read -r tool version platform url integrity member <<< "$release"
+binary="$workspace/.cache/bin/$tool"
+if [ -x "$binary" ]; then
+  reported=$(RUSTUP_AUTO_INSTALL=0 "$binary" --version 2>/dev/null || true)
+  case "$tool:$reported" in
+    "rustup:rustup $version "*)
+      proxies_complete=true
+      for proxy in cargo rustc rustdoc rustfmt cargo-fmt cargo-clippy clippy-driver; do
+        if [ ! -x "$CARGO_HOME/bin/$proxy" ]; then proxies_complete=false; break; fi
+      done
+      if [ "$proxies_complete" = true ]; then exit 0; fi ;;
+    "prek:prek $version"|"just:just $version") exit 0 ;;
+  esac
+fi
+
+if [ "$download_mode" = direnv ]; then
+  artifact=$(direnv fetchurl "$url" "$integrity")
+else
+  artifact=$(bash "$workspace/tools/fetch-file" "$url" "$integrity" "$workspace/.cache/downloads")
+fi
+mkdir -p "$workspace/.cache/bin"
+install_temporary=$(mktemp -d "$workspace/.cache/install.XXXXXX")
+trap 'rm -rf "$install_temporary"' EXIT
+if [ "$tool" = rustup ]; then
+  cp "$artifact" "$install_temporary/rustup-init"
+  chmod 755 "$install_temporary/rustup-init"
+  "$install_temporary/rustup-init" -y --no-modify-path --default-toolchain none
+else
+  tar -xzf "$artifact" -C "$install_temporary" "$member"
+  chmod 755 "$install_temporary/$member"
+  mv "$install_temporary/$member" "$binary"
+fi

@@ -7,10 +7,11 @@ offline search, resume, and duplicate detection are planned.
 
 ## Usage
 
-Install Rust through rustup; the repository pins Rust 1.99.0.
+Enable the workspace environment as described below; the first Rust command
+automatically installs Rust 1.99.0.
 
 ```sh
-cargo run --locked -- scan /path/to/disk
+just scan /path/to/disk
 ```
 
 The scanner recursively prints regular files as a byte size, a tab, and a quoted
@@ -27,21 +28,48 @@ results; path checks cannot eliminate races with directory replacement.
 
 ## Development
 
-The Rust executable has no third-party dependencies. Install Rust through rustup,
-[prek](https://github.com/j178/prek/releases/tag/v0.5.4) 0.5.4, and
-[just](https://github.com/casey/just/releases/tag/1.58.0) 1.58.0, with their commands
-on PATH. See [DEVELOPMENT.md](DEVELOPMENT.md) for tooling dependency details.
+The Rust executable has no third-party dependencies. Development hooks use
+[prek](https://prek.j178.dev/), a Rust Git hook runner with built-in whitespace
+fixers. See [DEVELOPMENT.md](DEVELOPMENT.md) for dependency details.
+
+From Bash or zsh, source the setup script in each new shell:
 
 ```sh
-prek install
+source tools/setup-env
 just check
 ```
 
-The hooks remove trailing whitespace, ensure a single final newline in nonempty
-text files, format Rust and the justfile, and run Clippy with warnings as errors.
-If a hook changes files, review and stage the changes before committing again.
-Hooks do not stage fixes. `.editorconfig` supplies the same whitespace conventions
-to supporting editors. Prek uses built-in fixers without Python or uv.
+The script can also be sourced using an absolute path from another directory.
+It needs Git, Bash, curl or wget, OpenSSL, and standard Unix archive tools.
+A system C linker/build toolchain is required when compiling Rust. Supported platforms
+are Linux with glibc and macOS, on x86_64 or ARM64. No separate
+Rust, just, prek, Python, or uv installation is required. The environment remains
+active until the shell exits; it does not automatically unload when you change
+directories.
+
+The setup installs pinned rustup, prek, and just into `.cache/bin`
+and adds that directory to PATH while you work here. Rustup downloads the version
+and components in `rust-toolchain.toml` on the first Rust command, including
+rustfmt and Clippy. Entering the workspace or listing recipes with `just`
+does not download the Rust toolchain. Builds, tests, formatting, linting, and
+Rust hooks trigger installation when needed.
+`CARGO_HOME` is set to `.cache` and `RUSTUP_HOME` to `.cache/rustup` in this
+workspace, keeping Rust downloads and configuration local. The first load
+requires network access for the small tools; the first Rust command also needs
+network access for the toolchain. Later loads and builds reuse installed tools
+offline. Downloads are ignored by Git. No global prek,
+just, or Rust installation is needed. A system C linker is still required for
+building; install your operating system's build tools if it is missing.
+
+Setup installs the Git hook and preserve unrelated existing hooks
+through prek's migration mode. Rust and justfile hooks explicitly activate the
+workspace paths, so IDE commits do not depend on an activated shell. Prek reads `prek.toml` and runs the checks before each
+commit. It removes trailing whitespace, ensures a single final newline in
+nonempty text files, formats Rust with rustfmt, and runs Clippy with warnings
+as errors. No workspace Python environment or activation is needed. If a hook
+changes files, review and stage the changes before committing again.
+`.editorconfig` applies the same whitespace conventions in supporting editors.
+Rust tools use the pinned toolchain.
 
 Use `just` for routine development; running it without arguments lists recipes:
 
@@ -62,6 +90,13 @@ just run --help
 tests, and validates hook configuration without modifying source files. `just hooks` runs all
 hooks, including whitespace cleanup. `just fmt-check` checks formatting only.
 All Cargo recipes use locked dependencies; Rust commands use the pinned toolchain.
+Ambient `RUSTUP_TOOLCHAIN` overrides are cleared when activating this workspace;
+explicit `cargo +<toolchain>` commands remain available for deliberate experiments.
+
+Release download URLs and
+SHA-256 hashes are recorded in `tools/tool-releases.txt`; downloaded binaries
+and archives are verified before installation. Setup does not execute downloaded
+shell scripts.
 
 ## Initial scope
 

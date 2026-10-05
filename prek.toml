@@ -13,7 +13,7 @@ repo = "local"
 [[repos.hooks]]
 id = "rustfmt"
 name = "Format Rust"
-entry = "cargo fmt --all"
+entry = "bash tools/run-in-env cargo fmt --all"
 language = "system"
 files = '\.rs$'
 pass_filenames = false
@@ -22,7 +22,7 @@ priority = 2
 [[repos.hooks]]
 id = "justfmt"
 name = "Format justfile"
-entry = "just --unstable --fmt"
+entry = "bash tools/run-in-env just --unstable --fmt"
 language = "system"
 files = '^justfile$'
 pass_filenames = false
@@ -31,7 +31,7 @@ priority = 2
 [[repos.hooks]]
 id = "clippy"
 name = "Analyze Rust with Clippy"
-entry = "cargo clippy --locked --all-targets -- -D warnings"
+entry = "bash tools/run-in-env cargo clippy --locked --all-targets -- -D warnings"
 language = "system"
 files = '(\.rs$|(^|/)(Cargo\.(toml|lock)|rust-toolchain\.toml)$)'
 pass_filenames = false
