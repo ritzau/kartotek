@@ -41,10 +41,15 @@ check: whitespace-check fmt-check lint test
 hooks:
     prek run --all-files
 
-# Scan a directory without modifying its files.
+# Save a scan in a catalog outside the source directory.
 [positional-arguments]
-scan directory:
-    cargo run --locked -- scan "$1"
+scan directory catalog:
+    cargo run --locked -- --catalog "$2" scan "$1"
+
+# List saved scans, including incomplete and interrupted scans.
+[positional-arguments]
+scans catalog:
+    cargo run --locked -- --catalog "$1" scans
 
 # Run Kartotek with the given command-line arguments.
 [positional-arguments]

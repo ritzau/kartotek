@@ -7,3 +7,4 @@ license = "0BSD"
 description = "A read-only local disk and backup catalog"
 
 [dependencies]
+rusqlite = { version = "=0.40.2", default-features = false, features = ["bundled"] }
