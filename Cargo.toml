@@ -1,0 +1,9 @@
+[package]
+name = "kartotek"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+license = "0BSD"
+description = "A read-only local disk and backup catalog"
+
+[dependencies]
