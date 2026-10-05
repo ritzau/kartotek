@@ -286,7 +286,9 @@ fn killed_process_preserves_committed_files_and_recovers_as_interrupted() {
     child.kill().unwrap();
     assert!(!child.wait().unwrap().success());
     assert!(!simultaneous.status.success());
-    let before = fixture.read();
+    // A killed writer may leave a hot journal; SQLite needs write access to roll
+    // it back before inspecting the durable prefix. This does not recover scan states.
+    let before = Connection::open(&fixture.catalog).unwrap();
     let state: String = before
         .query_row("SELECT state FROM scans", [], |row| row.get(0))
         .unwrap();
