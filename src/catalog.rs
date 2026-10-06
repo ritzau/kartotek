@@ -447,8 +447,9 @@ impl Catalog {
             .map_err(io::Error::other)?;
         let mut duplicates = Vec::new();
         for (size, hash) in groups {
+            // Avoid scanning a whole inventory per group merely to satisfy path ordering.
             let mut paths = self.connection.prepare(
-                "SELECT path, device, inode FROM files WHERE scan_id = ?1 AND size = ?2 AND full_hash = ?3 AND hash_state = 'full' ORDER BY path",
+                "SELECT path, device, inode FROM files INDEXED BY files_by_full_hash WHERE scan_id = ?1 AND size = ?2 AND full_hash = ?3 AND hash_state = 'full' ORDER BY path",
             ).map_err(io::Error::other)?;
             let mut rows = paths
                 .query(params![scan, size, hash])
