@@ -163,13 +163,27 @@ fn refuses_catalogs_in_the_source_even_through_parent_symlinks() {
             .success()
     );
     assert!(!direct.exists());
-    assert!(
-        !fixture
-            .run(&fixture.catalog, "scan", Some(&alias))
-            .status
-            .success()
-    );
-    assert!(!fixture.catalog.exists());
+    for suffix in ["", "/", "/.", "//./"] {
+        let mut root = alias.as_os_str().to_os_string();
+        root.push(suffix);
+        assert!(
+            !fixture
+                .run(&fixture.catalog, "scan", Some(Path::new(&root)))
+                .status
+                .success()
+        );
+        assert!(!fixture.catalog.exists());
+    }
+    for suffix in ["/", "/."] {
+        let mut root = fixture.source.as_os_str().to_os_string();
+        root.push(suffix);
+        assert!(
+            fixture
+                .run(&fixture.catalog, "scan", Some(Path::new(&root)))
+                .status
+                .success()
+        );
+    }
 }
 
 #[test]
