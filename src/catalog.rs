@@ -110,6 +110,11 @@ impl Catalog {
             ));
         }
         if application == 0 && version == 0 {
+            if !create {
+                return Err(io::Error::other(
+                    "file is not an initialized Kartotek catalog",
+                ));
+            }
             let objects: i64 = transaction
                 .query_row("SELECT count(*) FROM sqlite_master", [], |row| row.get(0))
                 .map_err(io::Error::other)?;

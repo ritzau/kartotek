@@ -217,6 +217,30 @@ fn refuses_foreign_databases_and_unknown_schema_versions_without_changes() {
 }
 
 #[test]
+fn read_commands_preserve_uninitialized_files_and_databases() {
+    for sqlite_header in [false, true] {
+        let fixture = Fixture::new();
+        fs::write(&fixture.catalog, []).unwrap();
+        if sqlite_header {
+            Connection::open(&fixture.catalog)
+                .unwrap()
+                .execute_batch("VACUUM")
+                .unwrap();
+        }
+        let before = fs::read(&fixture.catalog).unwrap();
+        for output in [
+            fixture.run(&fixture.catalog, "scans", None),
+            fixture.duplicates("1"),
+        ] {
+            assert!(!output.status.success());
+            assert!(String::from_utf8_lossy(&output.stderr).contains("not an initialized"));
+            assert_eq!(fs::read(&fixture.catalog).unwrap(), before);
+        }
+        assert!(fixture.scan().status.success());
+    }
+}
+
+#[test]
 fn listing_a_missing_catalog_does_not_create_it() {
     let fixture = Fixture::new();
     assert!(
