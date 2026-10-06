@@ -7,13 +7,15 @@ use std::path::{Path, PathBuf};
 
 /// Resolves a directory root while rejecting a symlink at the supplied root.
 pub fn source_root(root: &Path) -> io::Result<PathBuf> {
-    if !fs::symlink_metadata(root)?.is_dir() {
+    // Remove trailing separators and dot components before the no-follow check.
+    let root: PathBuf = root.components().collect();
+    if !fs::symlink_metadata(&root)?.is_dir() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "scan root must be a directory, not a file or symlink",
         ));
     }
-    fs::canonicalize(root)
+    fs::canonicalize(&root)
 }
 
 /// Resolves a catalog and checks existing files that SQLite may write alongside it.

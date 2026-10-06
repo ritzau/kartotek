@@ -2,13 +2,48 @@
 
 use std::fs;
 use std::io;
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 /// A regular file observed during traversal; its size may subsequently change.
 #[derive(Debug)]
 pub struct FileObservation {
     pub path: PathBuf,
+    pub metadata: FileMetadata,
+}
+
+/// A native metadata snapshot used to identify files and detect changes around reads.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FileMetadata {
     pub size: u64,
+    pub device: u64,
+    pub inode: u64,
+    pub links: u64,
+    pub modified_seconds: i64,
+    pub modified_nanos: i64,
+    pub changed_seconds: i64,
+    pub changed_nanos: i64,
+    pub mode: u32,
+    pub uid: u32,
+    pub gid: u32,
+}
+
+impl FileMetadata {
+    pub fn observe(metadata: &fs::Metadata) -> Self {
+        Self {
+            size: metadata.len(),
+            device: metadata.dev(),
+            inode: metadata.ino(),
+            links: metadata.nlink(),
+            modified_seconds: metadata.mtime(),
+            modified_nanos: metadata.mtime_nsec(),
+            changed_seconds: metadata.ctime(),
+            changed_nanos: metadata.ctime_nsec(),
+            mode: metadata.mode(),
+            uid: metadata.uid(),
+            gid: metadata.gid(),
+        }
+    }
 }
 
 /// A recoverable failure to observe a path or one of its directory entries.
@@ -37,14 +72,16 @@ pub fn scan(
     root: &Path,
     mut observe: impl FnMut(Observation) -> io::Result<()>,
 ) -> io::Result<ScanOutcome> {
-    let metadata = fs::symlink_metadata(root)?;
+    // A trailing slash or dot must not turn a symlink root into a directory.
+    let root: PathBuf = root.components().collect();
+    let metadata = fs::symlink_metadata(&root)?;
     if !metadata.is_dir() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "scan root must be a directory, not a file or symlink",
         ));
     }
-    let mut pending = vec![root.to_path_buf()];
+    let mut pending = vec![root];
     let mut outcome = ScanOutcome::Complete;
     while let Some(directory) = pending.pop() {
         // Recheck queued paths: a directory may have disappeared or become a symlink.
@@ -84,7 +121,7 @@ pub fn scan(
                 Ok(metadata) if metadata.is_file() => {
                     observe(Observation::File(FileObservation {
                         path,
-                        size: metadata.len(),
+                        metadata: FileMetadata::observe(&metadata),
                     }))?;
                 }
                 Ok(_) => {} // Symlinks and special files are outside this inventory.
@@ -154,7 +191,7 @@ mod tests {
         let mut files = Vec::new();
         let outcome = scan(&fixture.0, |event| {
             match event {
-                Observation::File(file) => files.push((file.path, file.size)),
+                Observation::File(file) => files.push((file.path, file.metadata.size)),
                 Observation::Failure(failure) => panic!("{failure:?}"),
             }
             Ok(())
@@ -241,11 +278,13 @@ mod tests {
             scan(&fixture.0, |_| panic!("unexpected observation")).unwrap(),
             ScanOutcome::Complete
         );
-        assert_eq!(
-            scan(&fixture.0.join("cycle"), |_| Ok(()))
-                .unwrap_err()
-                .kind(),
-            io::ErrorKind::InvalidInput
-        );
+        for suffix in ["", "/", "/.", "//./"] {
+            let mut root = fixture.0.join("cycle").into_os_string();
+            root.push(suffix);
+            assert_eq!(
+                scan(Path::new(&root), |_| Ok(())).unwrap_err().kind(),
+                io::ErrorKind::InvalidInput
+            );
+        }
     }
 }
